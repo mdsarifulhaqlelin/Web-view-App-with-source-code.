@@ -1,0 +1,72 @@
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'no_internet.dart';
+
+class WebViewScreen extends StatefulWidget {
+  const WebViewScreen({super.key});
+
+  @override
+  State<WebViewScreen> createState() => _WebViewScreenState();
+}
+
+class _WebViewScreenState extends State<WebViewScreen> {
+  late final WebViewController controller;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (url) {
+            setState(() => isLoading = true);
+          },
+          onPageFinished: (url) {
+            setState(() => isLoading = false);
+          },
+          onWebResourceError: (error) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => NoInternetScreen()),
+            );
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse("https://www.kothaipabo.xyz"));
+  }
+
+  Future<bool> _onWillPop() async {
+    if (await controller.canGoBack()) {
+      controller.goBack();
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  Future<void> _refreshPage() async {
+    controller.reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ignore: deprecated_member_use
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: RefreshIndicator(
+          onRefresh: _refreshPage,
+          child: Stack(
+            children: [
+              WebViewWidget(controller: controller),
+              if (isLoading)
+                const Center(child: CircularProgressIndicator()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
