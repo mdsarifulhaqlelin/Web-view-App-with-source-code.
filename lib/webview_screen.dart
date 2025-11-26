@@ -88,7 +88,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
   late final WebViewController controller;
   bool isLoading = true;
 
-  double appBarHeight = 56; // Default height
+  double appBarHeight = 70; // Default height
   double lastScroll = 0;
 
   @override
@@ -138,10 +138,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             height: appBarHeight,
-            child: AppBar(
-              title: const Text("Kothai Pabo"),
-              centerTitle: true,
-            ),
+            child: AppBar(title: const Text("Kothai Pabo"), centerTitle: true),
           ),
         ),
 
@@ -165,9 +162,12 @@ class _WebViewScreenState extends State<WebViewScreen> {
             onRefresh: _refreshPage,
             child: Stack(
               children: [
-                WebViewWidget(controller: controller),
-                if (isLoading)
-                  const Center(child: CircularProgressIndicator()),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20), // ⬅️ নিচে Space
+                  child: WebViewWidget(controller: controller),
+                ),
+
+                if (isLoading) const Center(child: CircularProgressIndicator()),
               ],
             ),
           ),
