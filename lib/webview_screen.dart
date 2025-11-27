@@ -1,78 +1,6 @@
-// import 'package:flutter/material.dart';
-// import 'package:webview_flutter/webview_flutter.dart';
-// import 'no_internet.dart';
-
-// class WebViewScreen extends StatefulWidget {
-//   const WebViewScreen({super.key});
-
-//   @override
-//   State<WebViewScreen> createState() => _WebViewScreenState();
-// }
-
-// class _WebViewScreenState extends State<WebViewScreen> {
-//   late final WebViewController controller;
-//   bool isLoading = true;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     controller = WebViewController()
-//       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-//       ..setNavigationDelegate(
-//         NavigationDelegate(
-//           onPageStarted: (url) {
-//             setState(() => isLoading = true);
-//           },
-//           onPageFinished: (url) {
-//             setState(() => isLoading = false);
-//           },
-//           onWebResourceError: (error) {
-//             Navigator.pushReplacement(
-//               context,
-//               MaterialPageRoute(builder: (_) => NoInternetScreen()),
-//             );
-//           },
-//         ),
-//       )
-//       ..loadRequest(Uri.parse("https://www.kothaipabo.xyz"));
-//   }
-
-//   Future<bool> _onWillPop() async {
-//     if (await controller.canGoBack()) {
-//       controller.goBack();
-//       return false;
-//     } else {
-//       return true;
-//     }
-//   }
-
-//   Future<void> _refreshPage() async {
-//     controller.reload();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     // ignore: deprecated_member_use
-//     return WillPopScope(
-//       onWillPop: _onWillPop,
-//       child: Scaffold(
-//         body: RefreshIndicator(
-//           onRefresh: _refreshPage,
-//           child: Stack(
-//             children: [
-//               WebViewWidget(controller: controller),
-//               if (isLoading)
-//                 const Center(child: CircularProgressIndicator()),
-//             ],
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-// ✅ এখন আপনার AppBar — স্ক্রল করলে Hide হয়ে যাবে, আবার উপরের দিকে স্ক্রল করলে ফিরে আসবে।
-
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'no_internet.dart';
@@ -88,40 +16,55 @@ class _WebViewScreenState extends State<WebViewScreen> {
   late final WebViewController controller;
   bool isLoading = true;
 
-  double appBarHeight = 70; // Default height
-  double lastScroll = 0;
+  double appBarHeight = 56;
 
   @override
   void initState() {
     super.initState();
+    checkInternet();
+
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..enableZoom(true)
+      ..setBackgroundColor(Colors.white)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (url) {
-            setState(() => isLoading = true);
-          },
-          onPageFinished: (url) {
-            setState(() => isLoading = false);
-          },
+          onPageStarted: (_) => setState(() => isLoading = true),
+          onPageFinished: (_) => setState(() => isLoading = false),
+
+          // Real No Internet Detection
           onWebResourceError: (error) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => NoInternetScreen()),
-            );
+            if (error.errorType == WebResourceErrorType.hostLookup ||
+                error.errorType == WebResourceErrorType.connect ||
+                error.errorType == WebResourceErrorType.timeout) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const NoInternetScreen()),
+              );
+            }
           },
         ),
       )
       ..loadRequest(Uri.parse("https://www.kothaipabo.xyz"));
   }
 
+  /// Internet check
+  void checkInternet() async {
+    var connectivity = await Connectivity().checkConnectivity();
+    if (connectivity == ConnectivityResult.none) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const NoInternetScreen()),
+      );
+    }
+  }
+
   Future<bool> _onWillPop() async {
     if (await controller.canGoBack()) {
       controller.goBack();
       return false;
-    } else {
-      return true;
     }
+    return true;
   }
 
   Future<void> _refreshPage() async {
@@ -133,44 +76,46 @@ class _WebViewScreenState extends State<WebViewScreen> {
     return WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
-        appBar: PreferredSize(
-          preferredSize: Size.fromHeight(appBarHeight),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: appBarHeight,
-            child: AppBar(title: const Text("Kothai Pabo"), centerTitle: true),
-          ),
-        ),
-
-        body: NotificationListener<ScrollNotification>(
-          onNotification: (scrollInfo) {
-            double current = scrollInfo.metrics.pixels;
-
-            if (current > lastScroll) {
-              // scrolling down → hide AppBar
-              setState(() => appBarHeight = 0);
-            } else {
-              // scrolling up → show AppBar
-              setState(() => appBarHeight = 56);
-            }
-
-            lastScroll = current;
-            return true;
-          },
-
-          child: RefreshIndicator(
-            onRefresh: _refreshPage,
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20), // ⬅️ নিচে Space
+        body: Stack(
+          children: [
+            /// WebView with bottom padding
+            RefreshIndicator(
+              onRefresh: _refreshPage,
+              child: Listener(
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent && event.scrollDelta.dy > 0) {
+                    setState(() => appBarHeight = 0); // hide on scroll down
+                  }
+                  if (event is PointerScrollEvent && event.scrollDelta.dy < 0) {
+                    setState(() => appBarHeight = 56); // show on scroll up
+                  }
+                },
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 20),   // ⬅️ bottom: 20 added
                   child: WebViewWidget(controller: controller),
                 ),
-
-                if (isLoading) const Center(child: CircularProgressIndicator()),
-              ],
+              ),
             ),
-          ),
+
+            /// Animated AppBar
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              top: 0,
+              left: 0,
+              right: 0,
+              height: appBarHeight,
+              child: AppBar(
+                title: const Text("Kothai Pabo"),
+                centerTitle: true,
+                elevation: 2,
+                backgroundColor: Colors.blue,
+              ),
+            ),
+
+            /// Loader
+            if (isLoading)
+              const Center(child: CircularProgressIndicator()),
+          ],
         ),
       ),
     );
